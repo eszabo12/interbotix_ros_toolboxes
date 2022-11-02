@@ -3,6 +3,7 @@ import rospy
 import actionlib
 import numpy as np
 from std_msgs.msg import Empty
+import cv2
 
 # handles imports of different base message types
 kobuki_msgs_found = False
@@ -93,7 +94,8 @@ class InterbotixCreate3Interface(object):
         # ROS Subscriber to process odometry of the base
         self.sub_base_odom = rospy.Subscriber("/" + self.robot_name + "/odom", Odometry, self.base_odom_cb)
         # ROS Subscriber to process images
-        self.color_img = rospy.Subscriber("/" + self.robot_name + "/camera/color/image_raw", numpy_msg(Image), self.color_img_cb, queue_size=10)
+        self.sub_color_image = rospy.Subscriber("/" + self.robot_name + "/camera/color/image_raw", numpy_msg(Image), self.color_img_cb, queue_size=10)
+        self.sub_depth_image = rospy.Subscriber("/" + self.robot_name + "/camera/depth/image_rect_raw", numpy_msg(Image), self.depth_img_cb, queue_size=10)
         rospy.sleep(0.5)
         print("Initialized InterbotixCreate3Interface!\n")
 
@@ -133,10 +135,16 @@ class InterbotixCreate3Interface(object):
 #debugging: disabling the callback sort of
     def color_img_cb(self, data):
         img = np.frombuffer(data.data, dtype=np.uint8).reshape(data.height, data.width, -1)
+        # _, frame = cv2.imencode('.jpeg', img) #might delete in the future
+        # img = frame.tobytes()
         self.color_img = img
 
+    def depth_img_cb(self, data):
+        img = np.frombuffer(data.data, dtype=np.float16).reshape(480, 640, 1)
+        self.depth_img = img
+
     def get_img(self):
-        return self.color_img
+        return self.color_img, self.depth_img
 
     ### @brief ROS Callback function to update the odometry of the robot
     ### @param msg - ROS Odometry message from the base
